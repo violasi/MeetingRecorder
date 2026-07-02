@@ -1,0 +1,18 @@
+# 构建产物
+.build/
+*.app/
+*.o
+*.swiftmodule
+DerivedData/
+
+# 运行期数据（录音、模型、配置，都不应进仓库）
+MeetingRecordings/
+*.caf
+*.wav
+*.bin
+
+# macOS
+.DS_Store
+
+# 临时
+*.log

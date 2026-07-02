@@ -1,0 +1,22 @@
+{
+  "pollIntervalSec": 3,
+  "endDebounceCount": 3,
+  "language": "auto",
+  "outputDir": "~/MeetingRecordings",
+  "whisperBin": "/usr/local/bin/whisper-cli",
+  "whisperModel": "~/MeetingRecordings/models/ggml-small.bin",
+  "ffmpegBin": "/usr/local/bin/ffmpeg",
+  "vadModel": "~/MeetingRecordings/models/ggml-silero-v5.1.2.bin",
+  "platforms": [
+    {
+      "name": "zoom",
+      "ownerNames": ["zoom.us"],
+      "titlePatterns": ["Zoom Meeting", "Zoom 会议"]
+    },
+    {
+      "name": "lark",
+      "ownerNames": ["Lark", "LarkSuite", "Feishu", "飞书"],
+      "titlePatterns": ["Meeting", "会议", "视频会议", "语音通话", "视频通话", "Video Call", "Group Call"]
+    }
+  ]
+}
