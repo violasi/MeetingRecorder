@@ -40,8 +40,15 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp ".build/MeetingRecorder" "$APP/Contents/MacOS/MeetingRecorder"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
-echo "== ad-hoc 签名 =="
-codesign --force --deep --sign - "$APP"
+# 优先用固定本地证书签名(身份稳定 → 重建不掉 TCC 权限)；没有则回退 ad-hoc
+SIGN_ID="MeetingRecorder Local Signing"
+if security find-identity -p codesigning 2>/dev/null | grep -q "$SIGN_ID"; then
+  echo "== 用固定本地证书签名 ($SIGN_ID) =="
+  codesign --force --deep --sign "$SIGN_ID" "$APP"
+else
+  echo "== 未找到固定证书，回退 ad-hoc 签名 =="
+  codesign --force --deep --sign - "$APP"
+fi
 
 echo ""
 echo "✅ 构建完成: $(pwd)/$APP"

@@ -22,14 +22,27 @@ final class AudioRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
     private var micFile: AVAudioFile?
     private var micTapInstalled = false
 
-    /// 开始录音。系统音频失败会抛错；麦克风失败仅记录日志（仍可只录系统音频）。
+    /// 开始录音。两路互相独立：任一路失败不影响另一路；只有两路都失败才抛错。
     func start(dir: URL) async throws {
         currentDir = dir
         systemURL = dir.appendingPathComponent("system.caf")
         micURL = dir.appendingPathComponent("mic.caf")
 
-        try await startSystemCapture()
-        startMicCapture()
+        // 麦克风先起，且不因系统音频失败而被跳过
+        let micOK = startMicCapture()
+
+        var systemOK = false
+        do {
+            try await startSystemCapture()
+            systemOK = true
+        } catch {
+            NSLog("[AudioRecorder] 系统音频采集失败（继续录麦克风）: \(error)")
+        }
+
+        if !micOK && !systemOK {
+            throw NSError(domain: "AudioRecorder", code: 2, userInfo: [NSLocalizedDescriptionKey:
+                "系统音频和麦克风都启动失败——请检查【屏幕录制】和【麦克风】权限"])
+        }
     }
 
     func stop() async {
@@ -75,18 +88,20 @@ final class AudioRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 
     // MARK: - 麦克风 (AVAudioEngine)
 
-    private func startMicCapture() {
+    /// 返回是否成功开始录麦克风。
+    @discardableResult
+    private func startMicCapture() -> Bool {
         let input = engine.inputNode
         let fmt = input.outputFormat(forBus: 0)
         guard fmt.sampleRate > 0 else {
             NSLog("[AudioRecorder] 无可用麦克风输入，跳过麦克风录制")
-            return
+            return false
         }
         do {
             micFile = try AVAudioFile(forWriting: micURL, settings: fmt.settings)
         } catch {
             NSLog("[AudioRecorder] 创建麦克风文件失败: \(error)")
-            return
+            return false
         }
         input.installTap(onBus: 0, bufferSize: 4096, format: fmt) { [weak self] buffer, _ in
             try? self?.micFile?.write(from: buffer)
@@ -95,8 +110,12 @@ final class AudioRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         engine.prepare()
         do {
             try engine.start()
+            return true
         } catch {
             NSLog("[AudioRecorder] 启动麦克风引擎失败: \(error)")
+            input.removeTap(onBus: 0)
+            micTapInstalled = false
+            return false
         }
     }
 
